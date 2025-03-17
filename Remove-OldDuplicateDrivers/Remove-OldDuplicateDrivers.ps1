@@ -68,7 +68,12 @@ foreach ( $Driver in $($Drivers | sort Filename) ) {
 if($NotUnique.count -eq 0){
     write-Output "No duplicates detected"
     exit 0
-    }
+}
+
+$Drivers | ForEach-Object {
+    $_ | Add-Member -MemberType NoteProperty -Name DateParsed -Value ([datetime]::ParseExact($_.Date, "yyyy.d.M", $null))
+}
+  
 
 $NotUnique | Sort-Object FileName | format-table
 # search for duplicate drivers 
@@ -76,7 +81,7 @@ $DriverList = $NotUnique | select-object -ExpandProperty FileName -Unique
 $ToDelete = @()
 foreach ( $Driver in $DriverList ) {
     Write-Output "Duplicate driver found" 
-    $Select = $Drivers | Where-Object { $_.FileName -eq $Driver } | Sort-Object date -Descending | Select-Object -Skip 1
+    $Select = $Drivers | Where-Object { $_.FileName -eq $Driver } | Sort-Object DateParsed -Descending | Select-Object -Skip 1
     $Select | Format-Table
     $ToDelete += $Select
 }
