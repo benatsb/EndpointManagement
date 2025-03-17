@@ -80,16 +80,33 @@ $NotUnique | Sort-Object FileName | format-table
 $DriverList = $NotUnique | select-object -ExpandProperty FileName -Unique
 $ToDelete = @()
 foreach ( $Driver in $DriverList ) {
-    Write-Output "Duplicate driver found" 
-    $Select = $Drivers | Where-Object { $_.FileName -eq $Driver } | Sort-Object DateParsed -Descending | Select-Object -Skip 1
-    $Select | Format-Table
-    $ToDelete += $Select
+  Write-Output "Duplicate driver found"
+  $ToDelete += $Drivers | Where-Object { $_.FileName -eq $Driver } | Sort-Object DateParsed -Descending | Select-Object -first 1 | foreach{
+      [pscustomobject]@{
+          Action = 'Current'
+          FileName = ($_.FileName).trim()
+          Name = ($_.Name).trim()
+          Date = $_.Date
+          Vendor = $_.Vendor
+          Version = $_.Version
+      }
+  }
+  $ToDelete += $Drivers | Where-Object { $_.FileName -eq $Driver } | Sort-Object DateParsed -Descending | Select-Object -Skip 1 | foreach {
+      [pscustomobject]@{
+          Action = 'Delete'
+          FileName = ($_.FileName).trim()
+          Name = ($_.Name).trim()
+          Date = $_.Date
+          Vendor = $_.Vendor
+          Version = $_.Version
+      }
+  }
 }
 Write-Output "List of driver version  to remove:" 
 $ToDelete | format-Table
 # Removing old driver versions
 
-foreach ( $DeleteDriver in $ToDelete ) {
+foreach ( $DeleteDriver in ($ToDelete | Where-Object 'Action' -eq 'Delete') ) {
     $Name = $($DeleteDriver.Name).Trim()
     Write-Output "Flagged for deletion: $($DeleteDriver.Vendor) $($DeleteDriver.FileName) $($DeleteDriver.Version)" 
     if($Action){
@@ -99,3 +116,5 @@ foreach ( $DeleteDriver in $ToDelete ) {
       Invoke-Expression -Command "pnputil.exe /delete-driver $Name /uninstall /force"
     }
 }
+
+return $ToDelete
